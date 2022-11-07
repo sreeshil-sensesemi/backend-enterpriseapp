@@ -3,7 +3,7 @@ const router = express.Router();
 const { addPatient, getByPatientId, updateByPatientId, deleteByPatientId, searchPatient } = require('./patient.controller')
 
 //add patient
-router.post('/addpatient', addPatient)
+router.post('/', addPatient)
 
 
 //search patient

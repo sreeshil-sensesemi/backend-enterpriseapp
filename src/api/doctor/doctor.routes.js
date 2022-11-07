@@ -4,7 +4,7 @@ const router = express.Router()
 const { addDoctor, getByDoctorId, updateByDoctorId, deleteByDoctorId, searchDoctor} = require("./doctor.controller")
 
 //add doctor
-router.post('/adddoctor', addDoctor);
+router.post('/', addDoctor);
 
 
 //search doctor
