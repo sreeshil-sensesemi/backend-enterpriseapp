@@ -1,4 +1,5 @@
 const db = require('../../database/sql/sequelize/database.connector.sequelize')
+const { doctorRegisterValidator } = require("./doctor.validator")
 
 const Doctor = db.doctors;
 
@@ -7,6 +8,20 @@ const Doctor = db.doctors;
 // @route POST => /api/doctors/adddoctor
 const addDoctor = async (req, res) => {
     try {
+
+        //validate the hospital register data
+        const validator = await doctorRegisterValidator(req.body);
+
+        //return if error occured
+        if (validator.error) {
+            return res.status(400).json({
+                status: false,
+                error: validator.error.details[0].message.replace(/"/g, ""),
+            });
+        }
+
+
+        //now just using some randomID , will change it
         const randomID = 1234;
 
         const doctorData = {
@@ -16,7 +31,7 @@ const addDoctor = async (req, res) => {
             LastName: req.body.lastname,
             Specialization: req.body.specialization,
             StateMedicalCouncil: req.body.statemedicalcouncil,
-            PractisingSince: req.body.practisingsince,
+            PracticingSince: req.body.practicingsince,
             Age: req.body.age,
             Gender: req.body.gender,
             Mobile: req.body.mobile,
@@ -27,17 +42,17 @@ const addDoctor = async (req, res) => {
         const isMobileExist = await Doctor.findOne({ where: { Mobile: req.body.mobile } });
 
         //return if mobile number already exists
-        if (isMobileExist) return res.status(409).json({ message: "mobile number already exists" })
+        if (isMobileExist) return res.status(409).json({ registered: false, message: "mobile number already exists" })
 
         //create doctor
         const doctor = await Doctor.create(doctorData);
 
-        res.status(201).json({ message: "Doctor is registered successfully" });
+        res.status(201).json({ registered: true, message: "Doctor is registered successfully" });
 
     } catch (error) {
 
         console.log(error);
-        return res.status(400).json({ message: "internal server error" })
+        return res.status(400).json({ registered: false, message: "internal server error" })
     }
 }
 
@@ -65,6 +80,17 @@ const getByDoctorId = async (req, res) => {
 const updateByDoctorId = async (req, res) => {
     try {
 
+        //validate the doctor update data
+        const validator = await doctorRegisterValidator(req.body);
+
+        //return if error occured
+        if (validator.error) {
+            return res.status(400).json({
+                status: false,
+                error: validator.error.details[0].message.replace(/"/g, ""),
+            });
+        }
+
         const doctorId = req.params.id;
 
         const data = {
@@ -73,7 +99,7 @@ const updateByDoctorId = async (req, res) => {
             LastName: req.body.lastname,
             Specialization: req.body.specialization,
             StateMedicalCouncil: req.body.statemedicalcouncil,
-            PractisingSince: req.body.practisingsince,
+            PracticingSince: req.body.practicingsince,
             Age: req.body.age,
             Gender: req.body.gender,
             Mobile: req.body.mobile,
@@ -82,14 +108,14 @@ const updateByDoctorId = async (req, res) => {
         }
 
         const updatedData = await Doctor.update(data, { where: { DoctorID: doctorId } });
-        // console.log(updatedData,"updatee");
-        if (updatedData == 0) return res.status(409).json({ message: "update failed, doctor not found" })
 
-        res.status(201).json({ message: "updated successfully" })
+        if (updatedData == 0) return res.status(409).json({ update: false, message: "update failed, doctor not found" })
+
+        res.status(200).json({ update: true, message: "updated successfully" })
 
     } catch (error) {
         console.log(error);
-        return res.status(400).json({ message: "internal server error" })
+        return res.status(500).json({ update: false, message: "internal server error" })
     }
 }
 
@@ -104,13 +130,13 @@ const deleteByDoctorId = async (req, res) => {
 
         const response = await Doctor.destroy({ where: { DoctorID: doctorId } })
 
-        if (response == 0) return res.status(409).json({ message: "delete failed, doctor not found" });
+        if (response == 0) return res.status(409).json({ delete: false, message: "delete failed, doctor not found" });
 
-        res.status(200).json({ message: "deleted successfully" })
+        res.status(200).json({ delete: true, message: "deleted successfully" })
 
     } catch (error) {
         console.log(error);
-        return res.status(400).json({ message: "internal server error" })
+        return res.status(400).json({ delete: false, message: "internal server error" })
     }
 }
 
@@ -125,14 +151,14 @@ const searchDoctor = async (req, res) => {
         const doctorName = req.query.name;
 
         const doctorData = await Doctor.findOne({ where: { FirstName: doctorName } })
-        
+
         if (!doctorData) return res.status(409).json({ message: "doctor not found" })
 
         res.status(200).json(doctorData);
 
     } catch (error) {
         console.log(error);
-        return res.status(400).json({ message: "internal server error" })
+        return res.status(500).json({ message: "internal server error" })
     }
 }
 

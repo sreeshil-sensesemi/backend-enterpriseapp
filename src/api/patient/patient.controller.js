@@ -1,4 +1,5 @@
 const db = require('../../database/sql/sequelize/database.connector.sequelize')
+const { patientRegisterValidator } = require("./patient.validator")
 
 const Patient = db.patients;
 
@@ -6,6 +7,17 @@ const Patient = db.patients;
 // @route POST => /api/patients/addpatient
 const addPatient = async (req, res) => {
     try {
+
+        //validate the patient register data
+        const validator = await patientRegisterValidator(req.body);
+
+        //return if error occured
+        if (validator.error) {
+            return res.status(400).json({
+                status: false,
+                error: validator.error.details[0].message.replace(/"/g, ""),
+            });
+        }
 
         const patientData = {
             PatientID: req.body.patientid,
@@ -25,16 +37,16 @@ const addPatient = async (req, res) => {
         const isMobileExist = await Patient.findOne({ where: { Mobile: req.body.mobile } });
 
         //return if mobile number already exists
-        if (isMobileExist) return res.status(409).json({ message: "mobile number already exists" })
+        if (isMobileExist) return res.status(409).json({ registered: false, message: "mobile number already exists" })
 
         //create patient
         const patient = await Patient.create(patientData);
 
-        res.status(201).json({ message: "Patient is registered successfully" });
+        res.status(201).json({ registered: true, message: "Patient is registered successfully" });
 
     } catch (error) {
         console.log(error);
-        return res.json({ status: 400, message: "internal server error" })
+        return res.status(500).json({ registered: false, message: "internal server error" })
     }
 }
 
@@ -47,15 +59,15 @@ const getByPatientId = async (req, res) => {
     try {
         const patientID = req.params.id;
 
-        const patientData = await Patient.findOne({ where: { PatientID: patientID}});
-        
-        if (!patientData) return res.status(409).json({ message: "patient details not found"});
+        const patientData = await Patient.findOne({ where: { PatientID: patientID } });
 
-        res.status(200).json({ patientData})
-        
+        if (!patientData) return res.status(409).json({ message: "patient details not found" });
+
+        res.status(200).json({ patientData })
+
     } catch (error) {
         console.log(error);
-        return res.status(400).json({ message: "internal server error" })
+        return res.status(500).json({ message: "internal server error" })
     }
 }
 
@@ -63,10 +75,22 @@ const getByPatientId = async (req, res) => {
 // @route PUT => /api/patients/:id
 const updateByPatientId = async (req, res) => {
     try {
-        
+
+        //validate the patient  update data
+        const validator = await patientRegisterValidator(req.body);
+
+        //return if error occured
+        if (validator.error) {
+            return res.status(400).json({
+                status: false,
+                error: validator.error.details[0].message.replace(/"/g, ""),
+            });
+        }
+
         const patientId = req.params.id;
 
         const data = {
+            PatientID: req.body.patientid,
             FirstName: req.body.firstname,
             LastName: req.body.lastname,
             Age: req.body.age,
@@ -81,14 +105,14 @@ const updateByPatientId = async (req, res) => {
         }
 
         const updatedData = await Patient.update(data, { where: { PatientID: patientId } });
-        
-        if (updatedData == 0) return res.status(409).json({ message: "update failed, patient not found" })
 
-        res.status(201).json({ message: "updated successfully" })
-        
+        if (updatedData == 0) return res.status(409).json({ update: false, message: "update failed, patient not found" })
+
+        res.status(200).json({ update: true, message: "updated successfully" })
+
     } catch (error) {
         console.log(error);
-        return res.status(400).json({ message: "internal server error" })
+        return res.status(500).json({ update: false, message: "internal server error" })
     }
 }
 
@@ -99,20 +123,20 @@ const updateByPatientId = async (req, res) => {
 // @route DELETE => /api/patients/:id
 const deleteByPatientId = async (req, res) => {
     try {
-        
-        
+
+
         const patientId = req.params.id;
 
         const response = await Patient.destroy({ where: { PatientID: patientId } })
 
-        if (response == 0) return res.status(409).json({ message: "delete failed, patient not found" });
+        if (response == 0) return res.status(409).json({ delete: false, message: "patient not found" });
 
-        res.status(200).json({ message: "deleted successfully" })
+        res.status(200).json({ delete: true, message: "deleted successfully" })
 
-        
+
     } catch (error) {
         console.log(error);
-        return res.status(400).json({ message: "internal server error" })
+        return res.status(500).json({ delete: false, message: "internal server error" })
     }
 }
 
@@ -126,7 +150,7 @@ const searchPatient = async (req, res) => {
         const patientName = req.query.name;
 
         const patientData = await Patient.findOne({ where: { FirstName: patientName } })
-        
+
         if (!patientData) return res.status(409).json({ message: "patient not found" })
 
         res.status(200).json(patientData);

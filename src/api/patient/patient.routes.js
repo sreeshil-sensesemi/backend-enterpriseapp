@@ -16,7 +16,7 @@ router.get('/:id', getByPatientId);
 router.put('/:id', updateByPatientId) 
 
 //delete patient
-router.delete('/:id', deleteByPatientId) 
+router.delete('/:id', deleteByPatientId)
 
 
 

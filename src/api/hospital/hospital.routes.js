@@ -2,6 +2,7 @@ const express = require("express")
 const router = express.Router()
 const {register, checkEnteredOtp, mobileNumberLogin ,test, verifyEnteredOtp, resendOTP} = require("./hospital.controller")
 
+const {hospitalRegisterValidator} = require("./hospital.validator")
 
 router.post('/register', register)
 router.post('/login', mobileNumberLogin)
