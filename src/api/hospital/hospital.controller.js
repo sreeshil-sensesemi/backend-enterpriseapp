@@ -121,7 +121,7 @@ const mobileNumberLogin = async (req, res) => {
 
         //return if error occured
         if (validator.error) {
-            return res.status(400).json({
+            return res.status(200).json({
                 otpsent: false,
                 registered: false,
                 error: validator.error.details[0].message.replace(/"/g, ""),
@@ -162,7 +162,7 @@ const checkEnteredOtp = async (req, res) => {
 
         //return if error occured
         if (validator.error) {
-            return res.status(400).json({
+            return res.status(200).json({
                 verified: false,
                 error: validator.error.details[0].message.replace(/"/g, ""),
             });
@@ -175,7 +175,7 @@ const checkEnteredOtp = async (req, res) => {
         const verifyOtpRes = await verifyOtp(otp, PhoneNumber)
 
         //return if not verified
-        if (!verifyOtpRes) return res.status(401).json({ verified: false, message: "OTP verification failed" })
+        if (!verifyOtpRes) return res.status(200).json({ verified: false, message: "OTP verification failed" })
 
         if (verifyOtpRes.status == 'approved' && verifyOtpRes.valid == true) {
 
@@ -183,7 +183,7 @@ const checkEnteredOtp = async (req, res) => {
             return res.status(200).json({ message: "OTP verification success", verified: true, hospitalData: hospitalData })
 
         } else {
-            return res.status(409).json({ verified: false, message: "OTP verification failed " })
+            return res.status(200).json({ verified: false, message: "Entered OTP is incorrect" })
         }
 
     } catch (error) {
