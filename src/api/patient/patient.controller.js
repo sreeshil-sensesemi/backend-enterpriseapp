@@ -1,5 +1,8 @@
-const db = require('../../database/sql/sequelize/database.connector.sequelize')
-const { patientRegisterValidator } = require("./patient.validator")
+const db = require('../../database/sql/sequelize/database.connector.sequelize');
+const { patientRegisterValidator } = require("./patient.validator");
+const {loginValidator ,otpValidator} = require('../hospital/hospital.validator');
+const {sendOtp, verifyOtp, } = require('../../utils/otp.config');
+
 
 const Patient = db.patients;
 
@@ -163,8 +166,93 @@ const searchPatient = async (req, res) => {
 
 
 
+//login of patient with mobile number
+// @route POST => /api/patients/login
+const loginWithMobile = async (req, res) => {
+    try {
+
+        //validate the patient login
+        const validator = await loginValidator(req.body);
+
+        //return if error occured
+        if (validator.error) {
+            return res.status(400).json({
+                status: false,
+                error: validator.error.details[0].message.replace(/"/g, ""),
+            });
+        }
+
+        
+        const { phonenumber: PhoneNumber } = req.body;
+
+        const isUserExist = await Patient.findOne({ where: { PhoneNumber: PhoneNumber } });
+
+        //return if phonenumber not found
+        if (!isUserExist) return res.status(404).json({ otpsent: false, registered: false, message: "Not registered" })
+
+        // req.session.hospitalDetails = isPhoneExist
+        req.session.enteredPatientNumber = PhoneNumber
+
+        //twilio otp  send
+        const sendOtpRes = await sendOtp(PhoneNumber);
+
+        res.status(200).json({ otpsent: true,registered: true, message: "OTP sent successfully" })
+
+    } catch (error) {
+        console.log(error);
+        return res.status(400).json({ message: "internal server error" })
+    }
+}
+
+
+
+//otp verify  for login
+// @route POST => /api/patients/verify-otp
+const checkEnteredOtp = async (req, res) => {
+
+    try {
+        
+        //validate input otp
+        const validator = await otpValidator(req.body)
+
+        //return if error occured
+        if (validator.error) {
+            return res.status(400).json({
+                status: false,
+                error: validator.error.details[0].message.replace(/"/g, ""),
+            });
+        }
+
+        const { otp } = req.body;
+        const PhoneNumber = req.session.enteredPatientNumber
+
+        //twilio otp verify
+        const verifyOtpRes = await verifyOtp(otp, PhoneNumber)
+
+        //return if not verified
+        if (!verifyOtpRes) return res.status(401).json({ verified: false, message: "OTP verification failed" })
+
+        if (verifyOtpRes.status == 'approved' && verifyOtpRes.valid == true) {
+
+            const PatientData = await Patient.findOne({ where: { PhoneNumber: PhoneNumber } });
+            return res.status(200).json({ verified: true, patientData: PatientData, message: "OTP verification success",  })
+
+        } else {
+            return res.status(409).json({ verified: false, message: "OTP verification failed " })
+        }
+
+    } catch (error) {
+        console.log(error);
+        return res.status(400).json({ verified: false, message: "internal server error" })
+    }
+}
+
+
+
+
 
 
 module.exports = {
-    addPatient, getByPatientId, updateByPatientId, deleteByPatientId, searchPatient
+    addPatient, getByPatientId, updateByPatientId, deleteByPatientId, searchPatient,
+    loginWithMobile, checkEnteredOtp
 }
