@@ -133,7 +133,7 @@ const mobileNumberLogin = async (req, res) => {
         const isPhoneExist = await Hospital.findOne({ where: { PhoneNumber: PhoneNumber } });
 
         //return if phonenumber not found
-        if (!isPhoneExist) return res.status(400).json({ otpsent: false, registered: false, message: "not registered redirect to register page" })
+        if (!isPhoneExist) return res.status(200).json({ otpsent: false, registered: false, message: "not registered redirect to register page" })
 
         // req.session.hospitalDetails = isPhoneExist
         req.session.enteredNumber = PhoneNumber
