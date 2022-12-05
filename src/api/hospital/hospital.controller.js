@@ -23,32 +23,32 @@ const register = async (req, res) => {
 
         const { hospitalname: HospitalName, phonenumber: PhoneNumber, email: Email, city: City } = req.body;
 
-        // const isPhoneExist = await Hospital.findOne({ where: { PhoneNumber: PhoneNumber } });
+        const isPhoneExist = await Hospital.findOne({ where: { PhoneNumber: PhoneNumber } });
 
-        // //return if phonenumber already exists
-        // if (isPhoneExist) return res.status(409).json({ otpsent: false, message: "phone number already exists" })
+        //return if phonenumber already exists
+        if (isPhoneExist) return res.status(409).json({ otpsent: false, message: "phone number already exists" })
 
-        // const isEmailExist = await Hospital.findOne({ where: { Email: Email } });
+        const isEmailExist = await Hospital.findOne({ where: { Email: Email } });
 
-        // //return if email already exists
-        // if (isEmailExist) return res.status(409).json({ otpsent: false, message: "email already exists" })
+        //return if email already exists
+        if (isEmailExist) return res.status(409).json({ otpsent: false, message: "email already exists" })
 
-        // //random id for hospitalID (later will use uuid for generating HospitalID )
-        // const randomID = 1234
+        //random id for hospitalID (later will use uuid for generating HospitalID )
+        const randomID = 1234
 
-        // const hospital = {
-        //     HospitalID: randomID,
-        //     HospitalName: HospitalName,
-        //     PhoneNumber: PhoneNumber,
-        //     Email: Email,
-        //     City: City
-        // }
+        const hospital = {
+            HospitalID: randomID,
+            HospitalName: HospitalName,
+            PhoneNumber: PhoneNumber,
+            Email: Email,
+            City: City
+        }
 
-        // //store hospital data in session (now using session to store the register data while verifing the otp)
-        // req.session.hospitalData = hospital
+        //store hospital data in session (now using session to store the register data while verifing the otp)
+        req.session.hospitalData = hospital
 
-        // //twilio otp send
-        // const sendOtpRes = await sendOtp(PhoneNumber);
+        //twilio otp send
+        const sendOtpRes = await sendOtp(PhoneNumber);
 
         return res.status(200).json({ otpsent: true, message: "OTP sent successfully, Enter the OTP to continue" })
 
@@ -156,7 +156,7 @@ const mobileNumberLogin = async (req, res) => {
 const checkEnteredOtp = async (req, res) => {
 
     try {
-        
+        console.log(req.body, "= req.body otp");
         //validate input otp
         const validator = await otpValidator(req.body)
 
@@ -169,10 +169,12 @@ const checkEnteredOtp = async (req, res) => {
         }
 
         const { otp } = req.body;
+        if (!req.session.enteredNumber) return res.status(400).json({ verified: false, message: "session expired" })
+
         const PhoneNumber = req.session.enteredNumber
 
         //twilio otp verify
-        const verifyOtpRes = await verifyOtp(otp, PhoneNumber)
+       const verifyOtpRes = await verifyOtp(otp, PhoneNumber)
 
         //return if not verified
         if (!verifyOtpRes) return res.status(200).json({ verified: false, message: "OTP verification failed" })
