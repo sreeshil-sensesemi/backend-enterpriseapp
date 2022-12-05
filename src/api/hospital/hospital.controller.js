@@ -135,9 +135,6 @@ const mobileNumberLogin = async (req, res) => {
         //return if phonenumber not found
         if (!isPhoneExist) return res.status(200).json({ otpsent: false, registered: false, message: "not registered redirect to register page" })
 
-        // req.session.hospitalDetails = isPhoneExist
-        req.session.enteredNumber = PhoneNumber
-
         //twilio otp  send
         const sendOtpRes = await sendOtp(PhoneNumber);
 
@@ -168,20 +165,17 @@ const checkEnteredOtp = async (req, res) => {
             });
         }
 
-        const { otp } = req.body;
-        if (!req.session.enteredNumber) return res.status(400).json({ verified: false, message: "session expired" })
-
-        const PhoneNumber = req.session.enteredNumber
+        const { phonenumber ,otp } = req.body;
 
         //twilio otp verify
-       const verifyOtpRes = await verifyOtp(otp, PhoneNumber)
+       const verifyOtpRes = await verifyOtp(otp, phonenumber)
 
         //return if not verified
         if (!verifyOtpRes) return res.status(200).json({ verified: false, message: "OTP verification failed" })
 
         if (verifyOtpRes.status == 'approved' && verifyOtpRes.valid == true) {
 
-            const hospitalData = await Hospital.findOne({ where: { PhoneNumber: PhoneNumber } });
+            const hospitalData = await Hospital.findOne({ where: { PhoneNumber: phonenumber } });
             return res.status(200).json({ message: "OTP verification success", verified: true, hospitalData: hospitalData })
 
         } else {

@@ -19,7 +19,8 @@ const hospitalRegisterValidator = (data) => {
 const otpValidator = (data) => {
 
     const otpSchema = Joi.object({
-        otp: Joi.string().required().length(4).label("OTP")
+        otp: Joi.string().required().length(4).label("OTP"),
+        phonenumber: Joi.string().required().length(10).label("Phone Number"),
     });
 
     return otpSchema.validate(data);
