@@ -1,10 +1,16 @@
 const express = require("express")
 const router = express.Router()
-const {register, checkEnteredOtp, mobileNumberLogin ,test, verifyEnteredOtp, resendOTP} = require("./hospital.controller")
+const { register, checkEnteredOtp, mobileNumberLogin, test, verifyEnteredOtp, resendOTP,
+    registerManualEntry,
+} = require("./hospital.controller")
 
-const {hospitalRegisterValidator} = require("./hospital.validator")
+const { hospitalRegisterValidator } = require("./hospital.validator")
+const upload = require('../../utils/multer.config');
 
-router.post('/register', register)
+
+
+router.post('/', upload.single('logo'), register);
+
 router.post('/login', mobileNumberLogin)
 
 //verify entered otp for register
@@ -16,9 +22,11 @@ router.post('/checkotp', checkEnteredOtp)
 //resend otp
 router.get('/resendotp', resendOTP)
 
-//home
-//router.get('/home', home)
 
-router.get('/test', test)
+
+//patients vital - manual entry
+router.post('/manual', registerManualEntry);
+
+router.post('/test', test)
 
 module.exports = router;

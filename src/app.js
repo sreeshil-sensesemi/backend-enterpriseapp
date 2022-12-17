@@ -12,8 +12,8 @@ const patientRoutes = require('./api/patient/patient.routes');
 const app = express();
 
 //middlewares
-app.use(express.json());
-app.use(express.urlencoded({extended:true}));
+app.use(express.json({limit: '50mb'}));
+app.use(express.urlencoded({extended:true,limit: '50mb'}));
 app.use(session({cookie: {  path: '/', maxAge: 60000000}, secret: process.env.SECRET_KEY_SESSION}));
 
 

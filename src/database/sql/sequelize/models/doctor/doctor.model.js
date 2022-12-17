@@ -2,7 +2,12 @@ module.exports = (sequelize, DataTypes) => {
     
     const Doctor = sequelize.define("doctor", {
         DoctorID: {
-            type: DataTypes.UUID,
+            type: DataTypes.STRING,
+            allowNull: false,
+            unique: true
+        },
+        HospitalID:{
+            type: DataTypes.STRING,
             allowNull: false,
             unique: true
         },
@@ -39,7 +44,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: false,
         },
-        Mobile: {
+        MobileNumber: {
             type: DataTypes.STRING,
             allowNull: false,
             unique: true

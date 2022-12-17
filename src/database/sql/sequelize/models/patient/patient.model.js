@@ -2,7 +2,17 @@ module.exports = (sequelize, DataTypes) => {
     
     const Patient = sequelize.define("patient", {
         PatientID: {
-            type: DataTypes.UUID,
+            type: DataTypes.STRING,
+            allowNull: false,
+            unique: true
+        },
+        DoctorID: {
+            type: DataTypes.STRING,
+            allowNull: false,
+            unique: true
+        },
+        HospitalID: {
+            type: DataTypes.STRING,
             allowNull: false,
             unique: true
         },
@@ -22,7 +32,7 @@ module.exports = (sequelize, DataTypes) => {
             type: DataTypes.STRING,
             allowNull: false,
         },
-        PhoneNumber: {
+        MobileNumber: {
             type: DataTypes.STRING,
             allowNull: false,
             unique: true

@@ -3,60 +3,109 @@ const db = require('../../database/sql/sequelize/database.connector.sequelize')
 const { sendOtp, verifyOtp } = require('../../utils/otp.config')
 const { hospitalRegisterValidator, otpValidator, loginValidator } = require('./hospital.validator')
 
+
+const { bpExtraction, ecgExtraction, bgExtraction, bodyTempExtraction, bloodOxygenExtraction } = require('../helpers/y')
+
+const {hexExtraction} = require ('../helpers/hex.data.extraction')
+
+
+
 const Hospital = db.hospitals;
 
+
+// generete hospital ID
+const generateID = (async () => {
+    var SenseHospitalID = Math.floor(Math.random() * 90000) + 10000;
+    let SenseHospitalIDStr = SenseHospitalID + ""
+
+    // check if generated ID is unique
+    const isIDExist = await Hospital.findOne({ where: { SenseHospitalID: SenseHospitalIDStr } });
+
+    if (isIDExist) {
+        generateID();
+    }
+
+    return SenseHospitalIDStr;
+})
+
+
+
+
+
 // hospital register
-// @route POST => /api/hospitals/register
+// @route POST => /api/hospitals/
 const register = async (req, res) => {
 
     try {
+
+        console.log(req.body);
+        console.log(req.file);
+        return
+
         //validate the hospital register data
-        const validator = await hospitalRegisterValidator(req.body);
+        const registerValidator = await hospitalRegisterValidator(req.body);
 
         //return if error occured
-        if (validator.error) {
-            return res.status(400).json({
-                otpsent: false,
-                error: validator.error.details[0].message.replace(/"/g, ""),
+        if (registerValidator.error) {
+            return res.status(200).json({
+                registered: false,
+                error: true,
+                message: registerValidator.error.details[0].message.replace(/"/g, ""),
             });
         }
 
-        const { hospitalname: HospitalName, phonenumber: PhoneNumber, email: Email, city: City } = req.body;
+        const {
+            hospitalname: HospitalName,
+            mobilenumber: MobileNumber,
+            hospitaltype: HospitalType,
+            governmentundertaking: GovernmentUndertaking,
+            state: State,
+            city: City,
+            address: Address,
+            pin: Pin,
+            otp: OTP
 
-        const isPhoneExist = await Hospital.findOne({ where: { PhoneNumber: PhoneNumber } });
+        } = req.body;
 
-        //return if phonenumber already exists
-        if (isPhoneExist) return res.status(409).json({ otpsent: false, message: "phone number already exists" })
+        const Email = req.body.email ? req.body.email : null;
+        const Website = req.body.website ? req.body.website : null;
+        
+        // check mobile number
+        const isMobileExist = await Hospital.findOne({ where: { MobileNumber: MobileNumber } });
 
-        const isEmailExist = await Hospital.findOne({ where: { Email: Email } });
+        if (isMobileExist) return res.status(200).json({registered: false, error: true, message: "Mobile Number Exists"})
 
-        //return if email already exists
-        if (isEmailExist) return res.status(409).json({ otpsent: false, message: "email already exists" })
+        // for generating ID
+        const ID = await generateID();
 
-        //random id for hospitalID (later will use uuid for generating HospitalID )
-        const randomID = 1234
-
-        const hospital = {
-            HospitalID: randomID,
-            HospitalName: HospitalName,
-            PhoneNumber: PhoneNumber,
-            Email: Email,
-            City: City
+        const registerData = {
+            SenseHospitalID: ID,
+            HospitalName,
+            MobileNumber,
+            Email,
+            HospitalType,
+            GovernmentUndertaking,
+            State,
+            City,
+            Address,
+            Pin,
+            Website
         }
 
-        //store hospital data in session (now using session to store the register data while verifing the otp)
-        req.session.hospitalData = hospital
 
-        //twilio otp send
-        const sendOtpRes = await sendOtp(PhoneNumber);
+        //create hospital
+        const hospital = await Hospital.create(registerData);
+     
+        return res.status(200).json({ registered: true, error: false, message: "Registered Successfully" });
 
-        return res.status(200).json({ otpsent: true, message: "OTP sent successfully, Enter the OTP to continue" })
 
     } catch (error) {
+
         console.log(error);
-        return res.status(500).json({ otpsent: false, message: "server error" })
+        return res.status(500).json({ registered: false, error: true, message: "server error" })
     }
 }
+
 
 //otp verify for register 
 // @route POST => /api/hospitals/checkotp
@@ -64,47 +113,46 @@ const verifyEnteredOtp = async (req, res) => {
 
     try {
 
-        //validate input otp
+        //validation
         const validator = await otpValidator(req.body)
 
         //return if error occured
         if (validator.error) {
-            return res.status(400).json({
+            return res.status(200).json({
                 verified: false,
-                registered: false,
-                error: validator.error.details[0].message.replace(/"/g, ""),
+                error: true,
+                message: validator.error.details[0].message.replace(/"/g, ""),
             });
         }
 
-        const { otp } = req.body;
+        const { otp: OTP, mobilenumber: MobileNumber } = req.body;
 
-        //check if hospital data still exist in session
-        if (!req.session.hospitalData) return res.status(401).json({ verified: false, registered: false, message: "something went wrong, try again" })
-
-        const { PhoneNumber } = req.session.hospitalData
 
         // twilio otp verify
-        const verifyOtpRes = await verifyOtp(otp, PhoneNumber)
+        const verifyOtpRes = await verifyOtp(OTP, MobileNumber)
 
         //return if not verified
-        if (!verifyOtpRes) return res.status(401).json({ verified: false, registered: false, message: "OTP verification failed" })
+        if (!verifyOtpRes) return res.status(200).json({ verified: false, error: true, message: "OTP verification failed" })
 
         //otp verify success
         if (verifyOtpRes.status == 'approved' && verifyOtpRes.valid == true) {
 
-            //register hospital
-            const hospital = await Hospital.create(req.session.hospitalData);
+            const hospitalData = await Hospital.findOne({ where: { MobileNumber: MobileNumber } });
 
-            res.status(201).json({ verified: true, registered: true, message: " Hospital has been registered successfully" })
+            //after verification send hospital data if hospital is registered
+            if (hospitalData) return res.status(200).json({ verified: true, isExist: true, error: false, hospitalData: hospitalData, message: "OTP verification success, Logged In" })
+
+
+            res.status(200).json({ verified: true, isExist: false, error: false, message: "OTP verification success , Not registerd : re-direct to register page" })
 
         } else {
-            //return if otp verify failed (wrong otp)
-            return res.status(409).json({ verified: false, registered: false, message: "OTP verification failed " })
+            // return if otp verify failed (wrong otp)
+            return res.status(200).json({ verified: false, error: true, message: "OTP verification failed " })
         }
 
     } catch (error) {
         console.log(error);
-        return res.status(400).json({ message: "internal server error" })
+        return res.status(500).json({ verified: false, error: true, message: "server error" })
     }
 }
 
@@ -123,26 +171,31 @@ const mobileNumberLogin = async (req, res) => {
         if (validator.error) {
             return res.status(200).json({
                 otpsent: false,
-                registered: false,
-                error: validator.error.details[0].message.replace(/"/g, ""),
+                error: true,
+                message: validator.error.details[0].message.replace(/"/g, ""),
             });
         }
 
-        const { phonenumber: PhoneNumber } = req.body;
+        const { mobilenumber: MobileNumber } = req.body;
 
-        const isPhoneExist = await Hospital.findOne({ where: { PhoneNumber: PhoneNumber } });
+        // const isMobileExist = await Hospital.findOne({ where: { MobileNumber: MobileNumber } });
 
-        //return if phonenumber not found
-        if (!isPhoneExist) return res.status(200).json({ otpsent: false, registered: false, message: "not registered redirect to register page" })
+        // if (!isMobileExist) {
+
+        //     //twilio otp  send
+        //     const sendOtpRes = await sendOtp(MobileNumber);
+
+        //     return res.status(200).json({ otpsent: true, registered: false, error: false, message: "OTP sent successfully, Enter the OTP to Register" })
+        // }
 
         //twilio otp  send
-        const sendOtpRes = await sendOtp(PhoneNumber);
+        const sendOtpRes = await sendOtp(MobileNumber);
 
-        res.status(200).json({ otpsent: true,registered: true, message: "OTP sent successfully" })
+        res.status(200).json({ otpsent: true, error: false, message: "OTP sent successfully, enter The OTP to continue" })
 
     } catch (error) {
         console.log(error);
-        return res.status(500).json({ message: "server error" })
+        return res.status(500).json({ otpsent: false, error: true, message: "server error" })
     }
 }
 
@@ -165,10 +218,10 @@ const checkEnteredOtp = async (req, res) => {
             });
         }
 
-        const { phonenumber ,otp } = req.body;
+        const { phonenumber, otp } = req.body;
 
         //twilio otp verify
-       const verifyOtpRes = await verifyOtp(otp, phonenumber)
+        const verifyOtpRes = await verifyOtp(otp, phonenumber)
 
         //return if not verified
         if (!verifyOtpRes) return res.status(200).json({ verified: false, message: "OTP verification failed" })
@@ -210,14 +263,97 @@ const resendOTP = async (req, res) => {
     }
 }
 
+
+
+//patients vital - manual entry
+//@route post => /api/hospitals/manual
+const registerManualEntry = async (req, res) => {
+    try {
+        console.log(req.body);
+    } catch (error) {
+        console.log(error);
+        return res.status(500).json({ resentotp: false, message: "server error" })
+    }
+}
+
 //testing server
 const test = async (req, res) => {
 
-    console.log("test ok");
+
+   // let data = JSON.stringify(req.body.data)
+    //console.log(data);
+    // console.log("================================="); 
+
+
+   // console.log(data);
+
+     //let headerData = req.body.data.slice(0, 54);
+    // console.log("======");
+    // console.log(headerData);
+    // console.log(req.body.data.length, "===");
+
+
+    let bpHeader = ["B6", "25", "0", "0", "31", "39", "31", "31", "2D", "30", "30", "2D", "31", "36", "3", "CD", "AB", "34", "12", "31", "31", "31", "31", "31", "32", "32", "32", "30", "31", "32", "33", "34", "35", "36", "37", "38", "39", "0", "3A", "17", "16", "C", "1F", "0", "64", "0", "B0", "4", "0", "0", "50", "0", "80", "0"]
+
+    let ecgHeader = ['f6', '12', '0', '0', '31', '39', '31', '31', '2d', '30', '30', '2d', '31', '36', '3', 'cd', 'ab', '34', '12', '31', '31', '31', '31', '31', '32', '32', '32', '30', '31', '32', '33', '34', '35', '36', '37', '38', '39', '0', '3a', '17', '16', 'c', '1f', '4', '64', '0', '58', '2', '0', '0', '57', '0', '0', '0']
+
+    let bgHeader = [
+        '38', '0', '0', '0', '31', '39', '31',
+        '31', '2d', '30', '30', '2d', '31', '36',
+        '3', 'cd', 'ab', '34', '12', '31', '31',
+        '31', '31', '31', '32', '32', '32', '30',
+        '31', '32', '33', '34', '35', '36', '37',
+        '38', '39', '0', '3a', '17', '16', 'c',
+        '1f', '1', '0', '0', '1', '0', '0',
+        '0', '96', '0', '0', '0'
+    ]
+
+    let bodyTempHeader = [
+        '38', '0', '0', '0', '31', '39', '31',
+        '31', '2d', '30', '30', '2d', '31', '36',
+        '3', 'cd', 'ab', '34', '12', '31', '31',
+        '31', '31', '31', '32', '32', '32', '30',
+        '31', '32', '33', '34', '35', '36', '37',
+        '38', '39', '0', '3a', '17', '16', 'c',
+        '1f', '7', '0', '0', '1', '0', '0',
+        '0', '0', '0', 'c3', '42'
+    ]
+
+    let spo2Header =  [
+        'f6', '12', '0',  '0',  '31', '39', '31',
+        '31', '2d', '30', '30', '2d', '31', '36',
+        '3',  'cd', 'ab', '34', '12', '31', '31',
+        '31', '31', '31', '32', '32', '32', '30',
+        '31', '32', '33', '34', '35', '36', '37',
+        '38', '39', '0',  '3a', '17', '16', 'c',
+        '1f', '6',  '64', '0',  '58', '2',  '0',
+        '0',  '5f', '0',  '0',  '0'
+      ]
+      
+    let contex = 'Body_Temp'
+    const result = hexExtraction(bodyTempHeader, contex);
+
+    console.log(result," == result");
+
+
+
+
+
+
+
+
+
+
+
+
     res.send("success");
 }
 
 // homepage
 // @route get => /api/hospitals/home
 
-module.exports = { register, mobileNumberLogin, checkEnteredOtp, test, verifyEnteredOtp, resendOTP };
+module.exports = {
+    register, mobileNumberLogin, checkEnteredOtp, test, verifyEnteredOtp, resendOTP,
+    registerManualEntry
+
+};

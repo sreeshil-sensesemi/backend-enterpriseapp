@@ -14,7 +14,7 @@ const addDoctor = async (req, res) => {
 
         //return if error occured
         if (validator.error) {
-            return res.status(400).json({
+            return res.status(200).json({
                 status: false,
                 error: validator.error.details[0].message.replace(/"/g, ""),
             });
